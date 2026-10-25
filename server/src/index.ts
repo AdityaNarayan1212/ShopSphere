@@ -304,7 +304,8 @@ app.post("/api/admin/uploads/presign", auth, admin, asyncRoute(async (req,res) =
   const key = `products/${crypto.randomUUID()}.${ext}`;
   const client = new S3Client({region:process.env.AWS_REGION || "ap-south-1"});
   const uploadUrl = await getSignedUrl(client,new PutObjectCommand({Bucket:bucket,Key:key,ContentType:input.contentType}),{expiresIn:300});
-  res.json({uploadUrl,key,expiresIn:300});
+  const assetsBaseUrl = process.env.ASSETS_BASE_URL?.replace(/\/+$/, "");
+  res.json({uploadUrl,key,expiresIn:300,...(assetsBaseUrl ? {publicUrl:`${assetsBaseUrl}/${key}`} : {})});
 }));
 
 async function notifyOrder(message:string) {
