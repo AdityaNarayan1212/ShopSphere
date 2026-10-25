@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+title: "ShopSphere: Cloud-Based E-Commerce Platform Using AWS Cloud Architecture"
+message: >-
+  If you reference this project in academic work or course evaluations, please cite it using the metadata below.
+  Supervised by Dr. S Vigneshwari (Faculty Supervisor, School of Computer Science and Engineering,
+  Vellore Institute of Technology, Chennai) for BCSE355L Cloud Architecture Design (Direct Assessment III).
+type: software
+version: "1.0.0"
+date-released: "2026-10-25"
+url: "https://d2yj8h74tzry42.cloudfront.net/"
+repository-code: "https://github.com/AdityaNarayan1212/ShopSphere"
+abstract: >-
+  ShopSphere is a full-stack cloud-based e-commerce web application developed for BCSE355L Cloud Architecture Design
+  (Direct Assessment III) at Vellore Institute of Technology, Chennai. The platform is deployed on Amazon Web Services
+  (ap-south-1) using Amazon CloudFront for HTTPS delivery and path-based routing, a single Ubuntu 24.04 EC2 instance
+  running Nginx and PM2-managed Express.js, a private Single-AZ Amazon RDS for PostgreSQL instance, an IAM instance
+  profile for credential-free AWS SDK access, a private Amazon S3 bucket (shopsphere-products-2026) for presigned
+  product image uploads, and Amazon SNS for order notifications.
+keywords:
+  - cloud-architecture
+  - aws
+  - e-commerce
+  - cloudfront
+  - ec2
+  - rds-postgresql
+  - s3
+  - sns
+  - prisma
+  - react
+  - express
+  - vit-chennai
+authors:
+  - given-names: "Adityaranjan"
+    family-names: "Narayan"
+    affiliation: "School of Computer Science and Engineering, Vellore Institute of Technology, Chennai"
+  - given-names: "Vedant"
+    family-names: "Bidkar"
+    affiliation: "School of Computer Science and Engineering, Vellore Institute of Technology, Chennai"
