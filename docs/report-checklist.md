@@ -1,40 +1,20 @@
-# College Report Screenshot Checklist (DA III — ShopSphere)
+# College Report Evidence & Screenshot Checklist (DA III — ShopSphere)
 
-Capture the following screenshots during deployment and testing for inclusion in the Cloud Architecture Design report. Redact any sensitive tokens or passwords before pasting into the document.
+The canonical 12-item screenshot index and redaction guide for the **BCSE355L Cloud Architecture Design (DA III)** submission is maintained in **[`docs/screenshots/README.md`](./screenshots/README.md)**.
 
-## 1. AWS Console — Infrastructure & Networking (`ap-south-1`)
-- [ ] **VPC & Subnets:** VPC overview showing public and private subnets in `ap-south-1` (confirming no NAT Gateway or Application Load Balancer is provisioned).
-- [ ] **Security Groups:**
-  - `shopsphere-ec2-sg` inbound rules (`TCP 80` and restricted `TCP 22`).
-  - `shopsphere-rds-sg` inbound rules showing `TCP 5432` allowed **only** from `shopsphere-ec2-sg`.
-- [ ] **EC2 Instance:** Running `t3.micro` Ubuntu 24.04 instance summary showing the attached IAM role (`shopsphere-ec2-role`) and security group.
-- [ ] **RDS PostgreSQL:** Available Single-AZ PostgreSQL instance showing **Publicly accessible = No** and `shopsphere-rds-sg`.
-- [ ] **S3 Bucket:** Private product image bucket showing **Block all public access = On** and the configured CORS policy.
-- [ ] **IAM Role & Policy:** `shopsphere-ec2-role` permissions tab showing `CloudWatchAgentServerPolicy` and the least-privilege inline policy for S3 and SNS.
-- [ ] **CloudFront Distribution:** Distribution summary showing the HTTPS `*.cloudfront.net` domain name, EC2 origin, and status `Deployed`.
+## Quick Checklist Summary
 
-## 2. Health Endpoints & Deployment Verification
-- [ ] **EC2 Terminal (`deploy/deploy.sh` & PM2):** Output of `pm2 status`, `sudo nginx -t`, and `deploy/deploy.sh` completing cleanly.
-- [ ] **API Health (`GET /api/health`):** Browser or `curl` output from `https://<CLOUDFRONT_DOMAIN>/api/health` returning `{"status":"ok","service":"shopsphere-api",...}`.
-- [ ] **Database Health (`GET /api/health/db`):** Browser or `curl` output from `https://<CLOUDFRONT_DOMAIN>/api/health/db` returning `{"status":"ok","db":"up",...}`.
-- [ ] **Smoke Test Script (`scripts/smoke-test.sh`):** Terminal output showing `PASS` for `health`, `register`, `login`, `products`, `cart`, and `order`.
+- [ ] `docs/screenshots/01-homepage-cloudfront-https.png` — ShopSphere homepage over CloudFront HTTPS (`https://d2yj8h74tzry42.cloudfront.net/`).
+- [ ] `docs/screenshots/02-product-catalogue-seeded.png` — Product collection showing the 8 seeded products across 6 categories.
+- [ ] `docs/screenshots/03-product-detail-page.png` — Product detail page (`/products/:slug`) with stock status and related products.
+- [ ] `docs/screenshots/04-search-and-category-filter.png` — Search and category/price/rating/stock filter results.
+- [ ] `docs/screenshots/05-shopping-cart.png` — Authenticated customer shopping cart with selected product and INR totals.
+- [ ] `docs/screenshots/06-customer-login.png` — Customer login screen (`/login`).
+- [ ] `docs/screenshots/07-checkout-and-order-confirmation.png` — Checkout and placed order (`SS-...`) in Order History (`/orders`).
+- [ ] `docs/screenshots/08-admin-dashboard.png` — Admin dashboard (`/admin`) showing products, customers, orders, pending count, and revenue.
+- [ ] `docs/screenshots/09-admin-product-management.png` — Admin product creation and order status management panel.
+- [ ] `docs/screenshots/10-api-health-endpoints.png` — Live responses from `/api/health` and `/api/health/db`.
+- [ ] `docs/screenshots/11-aws-console-architecture-redacted.png` — CloudFront (`/api/*` + `*` behaviors), EC2, private RDS, and Security Groups in `ap-south-1` (account IDs redacted).
+- [ ] `docs/screenshots/12-s3-sns-cloudwatch-evidence.png` — Private S3 bucket `shopsphere-products-2026`, SNS order notification evidence, and verified CloudWatch/CloudTrail views (account IDs redacted).
 
-## 3. Live Site & End-to-End Order Flow
-- [ ] **Live Storefront (HTTPS):** Browser showing the ShopSphere home/catalogue page over `https://<CLOUDFRONT_DOMAIN>` (padlock icon visible).
-- [ ] **Product Filtering & Details:** Searching or filtering products by category/brand and viewing a product detail page.
-- [ ] **Customer Registration / Login & Cart:** Logged-in customer adding items to the shopping cart.
-- [ ] **Checkout & Order Confirmation:** Adding a delivery address, placing a Cash on Delivery (`COD`) or `MOCK` order, and viewing the generated `SS-...` order number in the Order History page.
-
-## 4. Admin Dashboard & S3 Presigned Upload
-- [ ] **Admin Dashboard (`/api/admin/dashboard` UI):** Logged in as admin showing total products, customers, orders, pending count, and total revenue.
-- [ ] **Admin Product Image Upload (S3):** Uploading a product image via presigned S3 PUT URL and viewing the created/updated product.
-
-## 5. Observability, Notifications & Auditing
-- [ ] **CloudWatch Log Groups:** CloudWatch Logs console showing `/shopsphere/nginx` (`access`/`error` streams) and `/shopsphere/api` (JSON request logs from Express/PM2).
-- [ ] **CloudWatch Metrics & Alarms:** `ShopSphere/EC2` custom metrics (memory and disk usage) plus EC2 CPU/status alarms.
-- [ ] **SNS Order Notification Email:** Inbox screenshot of the email sent by Amazon SNS (`ShopSphere order update`) when an order is placed.
-- [ ] **CloudTrail Events:** CloudTrail Event History showing recent `ap-south-1` management events (e.g., EC2, S3, or RDS API calls).
-
-## 6. Load Test & Cost Estimate
-- [ ] **k6 Load Test Output (`loadtest/k6.js`):** Terminal summary of the 10-VU, 60-second k6 run showing `http_req_duration p(95) < 500ms` and `http_req_failed < 1%`.
-- [ ] **AWS Pricing Calculator / Cost Estimate (`docs/cost-estimate.md`):** Screenshot of the AWS Pricing Calculator estimate alongside the completed table in `docs/cost-estimate.md`.
+See [`docs/screenshots/README.md`](./screenshots/README.md) for detailed capture instructions and security redaction requirements, and [`docs/DA-III-content.md`](./DA-III-content.md) for the complete DA III report source text.
