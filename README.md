@@ -61,19 +61,16 @@ Seed script creates:
 These credentials are for local demonstration only. Change or remove them before deployment.
 
 ## AWS deployment outline
-1. **RDS PostgreSQL:** Create a PostgreSQL database in private subnets. Allow inbound 5432 only from the backend security group. Set `DATABASE_URL` in backend environment settings and run Prisma migrations as a controlled deployment step.
-2. **Elastic Beanstalk:** Deploy the `server` application or package the monorepo with a root start command. Set `NODE_ENV=production`, `PORT`, `DATABASE_URL`, `JWT_SECRET`, `CLIENT_ORIGIN`, and optional S3/SNS settings in the environment. Attach an IAM instance profile instead of static AWS keys.
-3. **S3:** Create a private bucket for product images. Use presigned uploads and serve images through CloudFront or short-lived presigned GET URLs. Restrict CORS to the frontend origin.
-4. **Cognito (production identity):** This demo currently uses local JWT auth. Replace the auth adapter with Cognito JWT verification before using Cognito as the identity provider; do not claim Cognito is active until that adapter is configured.
-5. **Frontend:** Build `client` using `npm run build --workspace client`, then deploy `client/dist` to Amplify Hosting or a private S3 origin behind CloudFront. Configure SPA fallback to `index.html`.
-6. **CloudWatch:** Send application logs to CloudWatch and create alarms for 5xx responses, latency, CPU, memory and database connections.
-7. **SNS:** Set `AWS_REGION` and `SNS_ORDER_TOPIC_ARN`; grant the backend role `sns:Publish` only to the required topic.
-8. **Clean up:** Delete test environments, load balancers, RDS instances/snapshots, S3 objects/buckets, CloudFront distributions and SNS topics after the demonstration to avoid ongoing charges.
+1. **RDS PostgreSQL:** Create a single-AZ PostgreSQL database in private subnets (`ap-south-1`). Allow inbound 5432 only from the EC2 security group. Set `DATABASE_URL` in `server/.env` and run Prisma migrations (`npm run db:deploy --workspace server`).
+2. **EC2 (Ubuntu 24.04 + Nginx + PM2):** Run the Express backend under PM2 on `127.0.0.1:4000` and serve the built React frontend (`/var/www/shopsphere`) via Nginx, proxying `/api/*` and `/api-docs` to Express. Attach an IAM instance profile instead of static AWS keys.
+3. **CloudFront:** Terminate HTTPS in front of the EC2 origin and forward requests to Nginx.
+4. **S3:** Create a private bucket for product images. Use presigned PUT uploads via the EC2 IAM role and optionally serve images via `ASSETS_BASE_URL` (CloudFront OAC) or presigned GET URLs. Restrict CORS to the frontend origin.
+5. **CloudWatch & CloudTrail:** Ship Nginx and PM2 logs and memory/disk metrics via the CloudWatch Agent (`/shopsphere/nginx`, `/shopsphere/api`), and enable a management-event CloudTrail trail.
+6. **SNS:** Set `AWS_REGION` and `SNS_ORDER_TOPIC_ARN`; grant the EC2 IAM role `sns:Publish` only to the required topic.
+7. **Clean up:** Delete test instances, RDS databases/snapshots, S3 objects/buckets, CloudFront distributions and SNS topics after the demonstration to avoid ongoing charges.
 
 ## Important security checks before public deployment
-- Replace demo credentials and JWT secret.
-- Use HTTPS and secure cookie/token handling appropriate to your deployment.
+- Replace demo credentials and `JWT_SECRET` (at least 32 characters in production).
+- Use HTTPS via CloudFront and configure `TRUST_PROXY=2` behind CloudFront + Nginx.
 - Configure exact CORS origins, rate limits, request-size limits and audit logging.
-- Add tests, dependency scanning, backups, recovery testing and secret rotation.
-- Configure Cognito or another production identity provider and verify JWT issuer/audience.
 - Add payment gateway integration only through a legitimate provider; the mock payment option does not charge money.
