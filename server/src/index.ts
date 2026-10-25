@@ -26,7 +26,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 
 type AuthRequest = Request & { user?: { id: string; role: Role; email: string } };
-const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign(u, jwtSecret || "development-only-secret-change-me", { expiresIn: process.env.JWT_EXPIRES_IN || "1d" });
+const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign(u, jwtSecret || "development-only-secret-change-me", { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
 
 function auth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
@@ -264,7 +264,7 @@ app.patch("/api/admin/orders/:id/status", auth, admin, asyncRoute(async (req,res
   if (input.status !== order.status && !transitions[order.status].includes(input.status)) return res.status(409).json({error:`Cannot change ${order.status} to ${input.status}`});
   res.json(await prisma.order.update({where:{id:order.id},data:{status:input.status}}));
 }));
-app.get("/api/admin/customers", auth, admin, asyncRoute(async (_req,res) => res.json(await prisma.user.findMany({where:{role:Role.CUSTOMER},select:{id:true,name:true,email:true,active:true,createdAt:true,_count:{select:{orders:true}}},orderBy:{createdAt:"desc"},take:200})));
+app.get("/api/admin/customers", auth, admin, asyncRoute(async (_req,res) => res.json(await prisma.user.findMany({where:{role:Role.CUSTOMER},select:{id:true,name:true,email:true,active:true,createdAt:true,_count:{select:{orders:true}}},orderBy:{createdAt:"desc"},take:200}))));
 app.patch("/api/admin/customers/:id/active", auth, admin, asyncRoute(async (req,res) => {
   const active = z.boolean().parse(req.body.active);
   const customer = await prisma.user.findFirst({where:{id:req.params.id,role:Role.CUSTOMER}});
