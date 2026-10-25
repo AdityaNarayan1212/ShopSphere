@@ -16,10 +16,18 @@ import crypto from "node:crypto";
 const app = express();
 const prisma = new PrismaClient();
 const port = Number(process.env.PORT || 4000);
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret || jwtSecret.length < 24) {
-  console.warn("WARNING: set JWT_SECRET to a random secret of at least 24 characters.");
+const isProd = process.env.NODE_ENV === "production";
+if (isProd) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("FATAL: DATABASE_URL is required when NODE_ENV=production.");
+  }
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error("FATAL: JWT_SECRET must be at least 32 characters when NODE_ENV=production.");
+  }
+} else if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.warn("WARNING: set JWT_SECRET to a random secret of at least 32 characters.");
 }
+const jwtSecret: string = isProd ? process.env.JWT_SECRET! : (process.env.JWT_SECRET || "development-only-secret-change-me");
 app.use(helmet());
 app.use(cors({ origin: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(s => s.trim()), credentials: true }));
 app.use(express.json({ limit: "1mb" }));
@@ -27,13 +35,13 @@ app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 
 type AuthRequest = Request & { user?: { id: string; role: Role; email: string } };
-const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign({ id: u.id, role: u.role, email: u.email }, jwtSecret || "development-only-secret-change-me", { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
+const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign({ id: u.id, role: u.role, email: u.email }, jwtSecret, { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
 
 function auth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return res.status(401).json({ error: "Authentication required" });
   try {
-    req.user = jwt.verify(header.slice(7), jwtSecret || "development-only-secret-change-me") as AuthRequest["user"];
+    req.user = jwt.verify(header.slice(7), jwtSecret) as AuthRequest["user"];
     next();
   } catch { return res.status(401).json({ error: "Invalid or expired token" }); }
 }
