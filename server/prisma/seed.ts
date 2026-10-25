@@ -31,10 +31,10 @@ async function main() {
     { name:"Performance Training Bottle", slug:"performance-training-bottle", description:"A durable reusable bottle for gym sessions, commuting and everyday use.", price:399, originalPrice:599, imageUrl:"https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=900&q=85", stock:50, category:"Sports & Fitness", brand:"ActivePulse", rating:4.5, reviewCount:97 },
     { name:"Compact Bluetooth Speaker", slug:"compact-bluetooth-speaker", description:"Portable sound with a compact design for desks, trips and weekends.", price:1599, originalPrice:2299, imageUrl:"https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=900&q=85", stock:16, category:"Electronics", brand:"NovaTech", rating:4.1, reviewCount:64 }
   ];
-  for (const p of products) {
+  for (const { category, brand, ...p } of products) {
     await prisma.product.upsert({
       where: { slug: p.slug }, update: {},
-      create: { ...p, price: p.price, originalPrice: p.originalPrice, categoryId: catMap[p.category], brandId: brandMap[p.brand] }
+      create: { ...p, price: p.price, originalPrice: p.originalPrice, categoryId: catMap[category], brandId: brandMap[brand] }
     });
   }
 
