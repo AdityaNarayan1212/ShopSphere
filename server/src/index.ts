@@ -325,6 +325,14 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   return res.status(status).json({error:status >= 500 ? "Internal server error" : (e.message || "Request failed")});
 });
 const server = app.listen(port, () => console.log(`ShopSphere API listening on ${port}`));
-async function shutdown() { server.close(); await prisma.$disconnect(); process.exit(0); }
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  await new Promise<void>(resolve => server.close(() => resolve()));
+  await prisma.$disconnect();
+  process.exit(0);
+}
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
