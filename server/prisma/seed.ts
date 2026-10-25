@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -38,10 +39,27 @@ async function main() {
     });
   }
 
-  const adminHash = await bcrypt.hash("DemoAdmin!234", 12);
-  const userHash = await bcrypt.hash("DemoUser!234", 12);
+  const isProd = process.env.NODE_ENV === "production";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || (isProd ? "" : "DemoAdmin!234");
+  const customerPassword = process.env.SEED_CUSTOMER_PASSWORD || (isProd ? "" : "DemoUser!234");
+  const seedDemoCustomer = isProd ? process.env.SEED_DEMO_CUSTOMER === "true" : process.env.SEED_DEMO_CUSTOMER !== "false";
+
+  if (isProd) {
+    if (!adminPassword || adminPassword === "DemoAdmin!234") {
+      throw new Error("Refusing to seed in production without a custom SEED_ADMIN_PASSWORD (cannot use DemoAdmin!234).");
+    }
+    if (process.env.SEED_CUSTOMER_PASSWORD === "DemoUser!234" || (seedDemoCustomer && (!customerPassword || customerPassword === "DemoUser!234"))) {
+      throw new Error("Refusing to seed in production with default demo customer password (DemoUser!234).");
+    }
+  }
+
+  const adminHash = await bcrypt.hash(adminPassword, 12);
   await prisma.user.upsert({ where:{email:"admin@shopsphere.demo"}, update:{}, create:{name:"Demo Admin",email:"admin@shopsphere.demo",passwordHash:adminHash,role:Role.ADMIN} });
-  await prisma.user.upsert({ where:{email:"customer@shopsphere.demo"}, update:{}, create:{name:"Demo Customer",email:"customer@shopsphere.demo",passwordHash:userHash} });
+
+  if (seedDemoCustomer) {
+    const userHash = await bcrypt.hash(customerPassword, 12);
+    await prisma.user.upsert({ where:{email:"customer@shopsphere.demo"}, update:{}, create:{name:"Demo Customer",email:"customer@shopsphere.demo",passwordHash:userHash} });
+  }
   console.log("Seed complete.");
 }
 main().finally(() => prisma.$disconnect());

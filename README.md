@@ -54,11 +54,11 @@ npm run dev:client
 Open http://localhost:5173. The API runs on http://localhost:4000 and Swagger UI on http://localhost:4000/api-docs.
 
 ## Demo accounts
-Seed script creates:
+In local development (`NODE_ENV=development`), the seed script reads `SEED_ADMIN_PASSWORD` and `SEED_CUSTOMER_PASSWORD` from the environment (defaulting locally to the demo passwords below):
 - Admin: `admin@shopsphere.demo` / `DemoAdmin!234`
 - Customer: `customer@shopsphere.demo` / `DemoUser!234`
 
-These credentials are for local demonstration only. Change or remove them before deployment.
+In production (`NODE_ENV=production`), `prisma/seed.ts` refuses to run with the default demo passwords and skips creating the demo customer account unless `SEED_DEMO_CUSTOMER=true` is explicitly set with a custom `SEED_CUSTOMER_PASSWORD`.
 
 ## AWS deployment outline
 1. **RDS PostgreSQL:** Create a single-AZ PostgreSQL database in private subnets (`ap-south-1`). Allow inbound 5432 only from the EC2 security group. Set `DATABASE_URL` in `server/.env` and run Prisma migrations (`npm run db:deploy --workspace server`).
