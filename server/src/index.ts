@@ -23,6 +23,7 @@ if (!jwtSecret || jwtSecret.length < 24) {
 app.use(helmet());
 app.use(cors({ origin: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(s => s.trim()), credentials: true }));
 app.use(express.json({ limit: "1mb" }));
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 
 type AuthRequest = Request & { user?: { id: string; role: Role; email: string } };
