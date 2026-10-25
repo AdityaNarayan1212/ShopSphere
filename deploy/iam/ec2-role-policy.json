@@ -1,0 +1,22 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ShopSphereS3ProductImagesReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::PLACEHOLDER_S3_BUCKET_NAME/products/*"
+    },
+    {
+      "Sid": "ShopSphereSNSOrderNotificationsPublish",
+      "Effect": "Allow",
+      "Action": [
+        "sns:Publish"
+      ],
+      "Resource": "arn:aws:sns:ap-south-1:PLACEHOLDER_AWS_ACCOUNT_ID:PLACEHOLDER_SNS_TOPIC_NAME"
+    }
+  ]
+}
