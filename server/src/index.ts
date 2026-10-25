@@ -61,6 +61,14 @@ const addressSchema = z.object({
 const productInclude = { category: true, brand: true } as const;
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "shopsphere-api", timestamp: new Date().toISOString() }));
+app.get("/api/health/db", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "up", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "error", db: "down", timestamp: new Date().toISOString() });
+  }
+});
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup({
   openapi: "3.0.0", info: { title: "ShopSphere API", version: "1.0.0" },
   servers: [{ url: "http://localhost:4000" }],

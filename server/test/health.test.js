@@ -9,6 +9,12 @@ test("health endpoint contract", async () => {
     const body = await response.json();
     assert.equal(body.status, "ok");
     assert.equal(body.service, "shopsphere-api");
+
+    const dbResponse = await fetch(`${base}/api/health/db`);
+    assert.equal(dbResponse.status, 200);
+    const dbBody = await dbResponse.json();
+    assert.equal(dbBody.status, "ok");
+    assert.equal(dbBody.db, "up");
   } catch (error) {
     if (process.env.REQUIRE_API_TEST === "1") throw error;
     console.log("Skipped live API health test: start the server or set REQUIRE_API_TEST=1.");

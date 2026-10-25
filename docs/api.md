@@ -4,6 +4,7 @@ Base URL: `http://localhost:4000/api`
 
 ## Public
 - `GET /health`
+- `GET /health/db`
 - `GET /products?q=&category=&brand=&minPrice=&maxPrice=&rating=&inStock=true&sort=&page=&limit=`
 - `GET /products/:id` (id or slug)
 - `GET /categories`
