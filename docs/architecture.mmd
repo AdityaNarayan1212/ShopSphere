@@ -1,0 +1,44 @@
+flowchart TB
+    User["User Browser"]
+
+    subgraph Edge["AWS Global Edge"]
+        CF["Amazon CloudFront<br/>(HTTPS Termination)"]
+    end
+
+    subgraph AWSRegion["AWS Region: ap-south-1 (Mumbai)"]
+        subgraph VPC["VPC (No NAT Gateway / No ALB)"]
+            subgraph PublicSubnet["Public Subnet"]
+                subgraph EC2SG["Security Group: shopsphere-ec2-sg<br/>(Inbound: TCP 80 from CloudFront/0.0.0.0/0, TCP 22 from Admin IP)"]
+                    subgraph EC2["EC2 Ubuntu 24.04 LTS (t3.micro, 2 GB Swap)"]
+                        Nginx["Nginx Reverse Proxy (:80)<br/>Serves /var/www/shopsphere<br/>Proxies /api/* & /api-docs"]
+                        PM2["PM2 + Express API (:4000)<br/>Node.js 20 + Prisma Client"]
+                        CWAgent["CloudWatch Agent"]
+                    end
+                end
+            end
+
+            subgraph PrivateSubnet["Private Subnets"]
+                subgraph RDSSG["Security Group: shopsphere-rds-sg<br/>(Inbound: TCP 5432 ONLY from shopsphere-ec2-sg)"]
+                    RDS[("Amazon RDS PostgreSQL 16<br/>(Single-AZ db.t3.micro, Private)")]
+                end
+            end
+        end
+
+        IAM["IAM Instance Role<br/>(shopsphere-ec2-role)<br/>No Static Access Keys"]
+        S3[("Amazon S3 Bucket (Private)<br/>Product Images via Presigned PUT")]
+        SNS["Amazon SNS Topic<br/>Order Email Notifications"]
+        CW["Amazon CloudWatch<br/>Logs: /shopsphere/nginx & /shopsphere/api<br/>Metrics: Memory & Disk"]
+        CT["AWS CloudTrail<br/>Account Management Audit Events"]
+    end
+
+    User -->|"HTTPS (443)"| CF
+    CF -->|"HTTP (80)"| Nginx
+    Nginx -->|"Static SPA (/index.html, /assets/*)"| User
+    Nginx -->|"Proxy /api/* & /api-docs (127.0.0.1:4000)"| PM2
+    PM2 -->|"Prisma TCP 5432 (SSL)"| RDS
+    EC2 -.->|"Assumes Instance Profile"| IAM
+    PM2 -->|"Presign & PutObject/GetObject"| S3
+    User -.->|"Direct Presigned PUT (CORS)"| S3
+    PM2 -->|"Publish Order Alerts"| SNS
+    CWAgent -->|"Ship Logs & Metrics"| CW
+    AWSRegion -.->|"API Activity"| CT

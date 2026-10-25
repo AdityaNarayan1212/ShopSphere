@@ -16,23 +16,39 @@ import crypto from "node:crypto";
 const app = express();
 const prisma = new PrismaClient();
 const port = Number(process.env.PORT || 4000);
-const jwtSecret = process.env.JWT_SECRET;
-if (!jwtSecret || jwtSecret.length < 24) {
-  console.warn("WARNING: set JWT_SECRET to a random secret of at least 24 characters.");
+const isProd = process.env.NODE_ENV === "production";
+if (isProd) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("FATAL: DATABASE_URL is required when NODE_ENV=production.");
+  }
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error("FATAL: JWT_SECRET must be at least 32 characters when NODE_ENV=production.");
+  }
+} else if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.warn("WARNING: set JWT_SECRET to a random secret of at least 32 characters.");
 }
+const jwtSecret: string = isProd ? process.env.JWT_SECRET! : (process.env.JWT_SECRET || "development-only-secret-change-me");
 app.use(helmet());
 app.use(cors({ origin: (process.env.CLIENT_ORIGIN || "http://localhost:5173").split(",").map(s => s.trim()), credentials: true }));
 app.use(express.json({ limit: "1mb" }));
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    console.log(JSON.stringify({ method: req.method, path: req.originalUrl.split("?")[0], status: res.statusCode, ms: Date.now() - start }));
+  });
+  next();
+});
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 
 type AuthRequest = Request & { user?: { id: string; role: Role; email: string } };
-const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign(u, jwtSecret || "development-only-secret-change-me", { expiresIn: process.env.JWT_EXPIRES_IN || "1d" });
+const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign({ id: u.id, role: u.role, email: u.email }, jwtSecret, { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
 
 function auth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) return res.status(401).json({ error: "Authentication required" });
   try {
-    req.user = jwt.verify(header.slice(7), jwtSecret || "development-only-secret-change-me") as AuthRequest["user"];
+    req.user = jwt.verify(header.slice(7), jwtSecret) as AuthRequest["user"];
     next();
   } catch { return res.status(401).json({ error: "Invalid or expired token" }); }
 }
@@ -52,6 +68,14 @@ const addressSchema = z.object({
 const productInclude = { category: true, brand: true } as const;
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok", service: "shopsphere-api", timestamp: new Date().toISOString() }));
+app.get("/api/health/db", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "up", timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: "error", db: "down", timestamp: new Date().toISOString() });
+  }
+});
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup({
   openapi: "3.0.0", info: { title: "ShopSphere API", version: "1.0.0" },
   servers: [{ url: "http://localhost:4000" }],
@@ -69,13 +93,13 @@ app.post("/api/auth/register", asyncRoute(async (req, res) => {
   const exists = await prisma.user.findUnique({ where:{email:input.email.toLowerCase()} });
   if (exists) return res.status(409).json({ error:"An account with this email already exists" });
   const user = await prisma.user.create({ data:{ name:input.name, email:input.email.toLowerCase(), passwordHash:await bcrypt.hash(input.password, 12) } });
-  return res.status(201).json({ token:signToken(user), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
+  return res.status(201).json({ token:signToken({ id: user.id, role: user.role, email: user.email }), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
 }));
 app.post("/api/auth/login", asyncRoute(async (req, res) => {
   const input = z.object({ email:z.string().email(), password:z.string().min(1) }).parse(req.body);
   const user = await prisma.user.findUnique({ where:{email:input.email.toLowerCase()} });
   if (!user || !user.active || !(await bcrypt.compare(input.password,user.passwordHash))) return res.status(401).json({error:"Email or password is incorrect"});
-  return res.json({ token:signToken(user), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
+  return res.json({ token:signToken({ id: user.id, role: user.role, email: user.email }), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
 }));
 app.get("/api/auth/me", auth, asyncRoute(async (req,res) => {
   const user = await prisma.user.findUnique({where:{id:req.user!.id},select:{id:true,name:true,email:true,role:true,active:true}});
@@ -264,7 +288,7 @@ app.patch("/api/admin/orders/:id/status", auth, admin, asyncRoute(async (req,res
   if (input.status !== order.status && !transitions[order.status].includes(input.status)) return res.status(409).json({error:`Cannot change ${order.status} to ${input.status}`});
   res.json(await prisma.order.update({where:{id:order.id},data:{status:input.status}}));
 }));
-app.get("/api/admin/customers", auth, admin, asyncRoute(async (_req,res) => res.json(await prisma.user.findMany({where:{role:Role.CUSTOMER},select:{id:true,name:true,email:true,active:true,createdAt:true,_count:{select:{orders:true}}},orderBy:{createdAt:"desc"},take:200})));
+app.get("/api/admin/customers", auth, admin, asyncRoute(async (_req,res) => res.json(await prisma.user.findMany({where:{role:Role.CUSTOMER},select:{id:true,name:true,email:true,active:true,createdAt:true,_count:{select:{orders:true}}},orderBy:{createdAt:"desc"},take:200}))));
 app.patch("/api/admin/customers/:id/active", auth, admin, asyncRoute(async (req,res) => {
   const active = z.boolean().parse(req.body.active);
   const customer = await prisma.user.findFirst({where:{id:req.params.id,role:Role.CUSTOMER}});
@@ -280,7 +304,8 @@ app.post("/api/admin/uploads/presign", auth, admin, asyncRoute(async (req,res) =
   const key = `products/${crypto.randomUUID()}.${ext}`;
   const client = new S3Client({region:process.env.AWS_REGION || "ap-south-1"});
   const uploadUrl = await getSignedUrl(client,new PutObjectCommand({Bucket:bucket,Key:key,ContentType:input.contentType}),{expiresIn:300});
-  res.json({uploadUrl,key,expiresIn:300});
+  const assetsBaseUrl = process.env.ASSETS_BASE_URL?.replace(/\/+$/, "");
+  res.json({uploadUrl,key,expiresIn:300,...(assetsBaseUrl ? {publicUrl:`${assetsBaseUrl}/${key}`} : {})});
 }));
 
 async function notifyOrder(message:string) {
@@ -301,6 +326,14 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   return res.status(status).json({error:status >= 500 ? "Internal server error" : (e.message || "Request failed")});
 });
 const server = app.listen(port, () => console.log(`ShopSphere API listening on ${port}`));
-async function shutdown() { server.close(); await prisma.$disconnect(); process.exit(0); }
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  await new Promise<void>(resolve => server.close(() => resolve()));
+  await prisma.$disconnect();
+  process.exit(0);
+}
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

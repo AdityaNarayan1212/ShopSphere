@@ -1,0 +1,19 @@
+[
+  {
+    "AllowedHeaders": [
+      "Content-Type",
+      "Content-Length",
+      "x-amz-*"
+    ],
+    "AllowedMethods": [
+      "PUT"
+    ],
+    "AllowedOrigins": [
+      "https://PLACEHOLDER_CLOUDFRONT_DOMAIN.cloudfront.net"
+    ],
+    "ExposeHeaders": [
+      "ETag"
+    ],
+    "MaxAgeSeconds": 3000
+  }
+]
