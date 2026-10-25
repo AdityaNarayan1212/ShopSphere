@@ -26,7 +26,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false }));
 
 type AuthRequest = Request & { user?: { id: string; role: Role; email: string } };
-const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign(u, jwtSecret || "development-only-secret-change-me", { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
+const signToken = (u: { id: string; role: Role; email: string }) => jwt.sign({ id: u.id, role: u.role, email: u.email }, jwtSecret || "development-only-secret-change-me", { expiresIn: (process.env.JWT_EXPIRES_IN || "1d") as jwt.SignOptions["expiresIn"] });
 
 function auth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
@@ -69,13 +69,13 @@ app.post("/api/auth/register", asyncRoute(async (req, res) => {
   const exists = await prisma.user.findUnique({ where:{email:input.email.toLowerCase()} });
   if (exists) return res.status(409).json({ error:"An account with this email already exists" });
   const user = await prisma.user.create({ data:{ name:input.name, email:input.email.toLowerCase(), passwordHash:await bcrypt.hash(input.password, 12) } });
-  return res.status(201).json({ token:signToken(user), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
+  return res.status(201).json({ token:signToken({ id: user.id, role: user.role, email: user.email }), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
 }));
 app.post("/api/auth/login", asyncRoute(async (req, res) => {
   const input = z.object({ email:z.string().email(), password:z.string().min(1) }).parse(req.body);
   const user = await prisma.user.findUnique({ where:{email:input.email.toLowerCase()} });
   if (!user || !user.active || !(await bcrypt.compare(input.password,user.passwordHash))) return res.status(401).json({error:"Email or password is incorrect"});
-  return res.json({ token:signToken(user), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
+  return res.json({ token:signToken({ id: user.id, role: user.role, email: user.email }), user:{id:user.id,name:user.name,email:user.email,role:user.role} });
 }));
 app.get("/api/auth/me", auth, asyncRoute(async (req,res) => {
   const user = await prisma.user.findUnique({where:{id:req.user!.id},select:{id:true,name:true,email:true,role:true,active:true}});
